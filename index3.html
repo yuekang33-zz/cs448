@@ -108,7 +108,8 @@ d3.csv("stock_data2.csv", type, function(error, data) {
   city.append("path")
       .attr("class", "line")
       .attr("d", function(d) { return line(d.values); })
-      .style("stroke", function(d) { return z(d.id); });
+      .style("stroke","blue")
+      //.style("stroke", function(d) { return z(d.id); });
 
   city.append("text")
       .datum(function(d) { return {id: d.id, value: d.values[d.values.length - 1]}; })
@@ -150,18 +151,26 @@ var brushCell;
              console.log("mapped e[1][1] is", y.invert(e[1][1]));
     var dateMin = x.invert(e[0][0]);
     var dateMax = x.invert(e[1][0]);
-    var priceMin = y.invert(e[0][1]);
-    var priceMax = y.invert(e[1][1]);
-    svg.selectAll('path.line').style("fill", "red");
+    var priceMin = y.invert(e[1][1]);
+    var priceMax = y.invert(e[0][1]);
+   // svg.selectAll('path.line').style("fill", "red");
     var left = svg.selectAll('path.line').filter(function(d, i) {
+        var flag = false;
         d.values.forEach(function(ele, j){
-          // if (ele.date <= dateMax && ele.date >= dateMin && (ele.price < priceMin || ele.price > priceMax) ) {
-          //     return i;
-          // }
-          return d.values[j].date <= dateMax && d.values[j].date >= dateMin && (d.values[j].price < priceMin || d.values[j].price > priceMax);
+          //console.log("eledate", ele.date);
+          //console.log("eleprice", ele.price);
+         // console.log("compare date: ", ele.date <= dateMax);
+          //console.log("compare PRICE: ", ele.price < priceMin);
+         
+          if (x(ele.date) <= x(dateMax) && x(ele.date) >= x(dateMin) && (ele.price >= priceMin && ele.price <= priceMax) ) {
+            console.log("skip");
+              flag = true;
+          }
+          // return d.values[j].date <= dateMax && d.values[j].date >= dateMin && (d.values[j].price < priceMin || d.values[j].price > priceMax);
         })
-
-    }).style("fill", "green");
+        console.log("flag", flag)
+        return flag;
+    }).style("stroke", "green");
     console.log(left);
     //     svg.selectAll('path.line').classed("hidden", (function(d, i) {
     //     d.values.forEach(function(ele){
