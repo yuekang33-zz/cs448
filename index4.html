@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+.axis--x path {
+  display: none;
+}
+.line {
+  fill: none;
+  stroke: gray;
+  stroke-width: 1.5px;
+}
+rect.selection {
+    stroke          : black;
+    stroke-dasharray: 10px;
+    stroke-opacity  : 0.5;
+    fill            : transparent;
+}
+.line.highlight {
+    fill-opacity: 1;
+    stroke-opacity: 1;
+}
+.line.hidden {
+  fill: #ccc !important;
+}
+</style>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 80, bottom: 30, left: 50},
+    width = svg.attr("width") - margin.left - margin.right,
+    height = svg.attr("height") - margin.top - margin.bottom,
+    g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+	g2 = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+var parseTime = d3.timeParse("%m/%d/%y");
+var bisectDate = d3.bisector(function(d) { return d.date; }).left;
+var x = d3.scaleTime().range([0, width]),
+    y = d3.scaleLinear().range([height, 0]),
+    y2 = d3.scaleLinear().range([height, 0]),
+    z = d3.scaleOrdinal(d3.schemeCategory10);
+
+var line = d3.line()
+    .curve(d3.curveBasis)
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.price); });
+var selected_data ;
+var all_data;
+var city
+d3.csv("stock_data.csv", type, function(error, data) {
+  if (error) throw error;
+	var companies = data.columns.slice(1).map(function(id) {
+    return {
+      values: data.map(function(d) {
+        return {date: d.date, price: d[id], id: id};
+      })
+    };
+  });
+  all_data = companies
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+  y.domain([
+    d3.min(companies, function(c) { return d3.min(c.values, function(d) { return d.price; }); }),
+    d3.max(companies, function(c) { return d3.max(c.values, function(d) { return d.price; }); })
+  ]);
+  z.domain(companies.map(function(c) { return c.id; }));
+  g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+  g.append("g")
+      .attr("class", "axis axis--y")
+      .call(d3.axisLeft(y))
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", "0.71em")
+      .attr("fill", "#000")
+      .text("Price, $");
+ // g.call(brush);
+    city = g.selectAll(".company")
+    .data(companies)
+    .enter().append("g")
+      .attr("class", "company");
+  city.append("path")
+      .attr("class", "line")
+      .attr("d", function(d) { return line(d.values); })
+      .style("stroke","palegray")
+      //.style("stroke", function(d) { return z(d.id); });
+  city.append("text")
+      .datum(function(d) { return {id: d.id, value: d.values[d.values.length - 1]}; })
+      .attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.price) + ")"; })
+      .attr("x", 3)
+      .attr("dy", "0.35em")
+      .style("font", "10px sans-serif")
+      .text(function(d) { return d.id; });
+	   g2.call(d3.brush().on('brush',selectData))  
+ }); 
+
+	function selectData(){
+		var highlighted = g2.selectAll("path")
+						.data(all_data)
+						.enter();
+		console.log('highlighted',highlighted)
+		console.log('g2',g2);
+		highlighted.exit().remove();
+		highlighted.append("path")
+			.attr("class", "selected")
+			.attr("d", function(d) { return line(d.values); })
+			.style("stroke","red")
+			.style("fill",'none')
+		update(all_data)
+	}
+
+
+
+
+function update(selected_data){
+	var e = d3.event.selection;
+    var dateMin = x.invert(e[0][0]);
+    var dateMax = x.invert(e[1][0]);
+    var priceMin = y.invert(e[1][1]);
+    var priceMax = y.invert(e[0][1]);
+	var selected_data_update = [];
+	highlighted = g2.selectAll("path").filter(function(d,j){ 
+					for(var i =0; i<d.values.length;i++){
+						/*if(d.values[i].price>34 && x(d.values[i].date)>500){
+							selected_data.splice(j,1)
+							return false}*/
+						if (d.values[i].date<= dateMax && d.values[i].date >= dateMin && (d.values[i].price < priceMin || d.values[i].price > priceMax) ){
+							return false;
+						} 
+					}
+					//console.log('update_array',selected_data_update)
+					selected_data_update.push(d)
+					return true;})
+	highlighted = g2.selectAll("path")
+					.data(selected_data_update)
+	highlighted.exit().remove();
+	highlighted.enter().append("path")
+	highlighted.attr("class", "selected")
+				.attr("d", function(d) { return line(d.values); })
+				.style("stroke","green")
+
+}
+
+function type(d, _, columns) {
+  d.date = parseTime(d.date);
+  for (var i = 1, n = columns.length, c; i < n; ++i) d[c = columns[i]] = +d[c];
+  return d;
+}
+</script>
