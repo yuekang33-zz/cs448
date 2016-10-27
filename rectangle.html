@@ -1,0 +1,185 @@
+
+<html>
+
+<head>
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+</head>
+
+<body>
+    <div id="visualization_area"></div>
+
+    <script>
+        var svg = d3.select("#visualization_area")
+            .append("svg")
+            .attr("width", 1000)
+            .attr("height", 1000);
+
+        var circle_position_data = d3.range(10).map(function() { 
+            return { 
+                x: Math.round(Math.random() * (1000 - 55 * 2) + 55), 
+                y: Math.round(Math.random() * (1000 - 55 * 2) + 55) 
+            }; 
+        });
+
+        circle_position_data.forEach(function(d, i) {
+            d.i = i;
+        });
+
+        var g = svg.selectAll("rect")
+                .data(circle_position_data)
+                .enter()
+                .append("g");
+        g.append("rect")
+            .style("fill", "blue")
+            .attr("id", function(d) { return "rect" + d.i; })
+            .attr("height", +55)
+			.attr("width", +55)
+            .attr("x", function(d) { return d.x})
+            .attr("y", function(d) { return d.y})
+            .call(d3.drag().on("drag", on_rect_drag));
+			
+		g.append("circle")//upperleft
+			.style("fill","black")
+			.attr("id",function(d){return "pnt1"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return d3.select("#rect"+d.i).attr("x")})
+			.attr("cy",function(d){return d3.select("#rect"+d.i).attr("y")})
+			.call(d3.drag().on("drag",on_p1_resize))
+		g.append("circle")//upperright
+			.style("fill","black")
+			.attr("id",function(d){return "pnt2"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return +d3.select("#rect"+d.i).attr("x")+(+d3.select("#rect"+d.i).attr("width"))})
+			.attr("cy",function(d){return d3.select("#rect"+d.i).attr("y")})
+			.call(d3.drag().on("drag",on_p2_resize))
+		g.append("circle")//lowerleft
+			.style("fill","black")
+			.attr("id",function(d){return "pnt3"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return d3.select("#rect"+d.i).attr("x")})
+			.attr("cy",function(d){return +d3.select("#rect"+d.i).attr("y")+(+d3.select("#rect"+d.i).attr("height"))})
+			.call(d3.drag().on("drag",on_p3_resize))
+		g.append("circle")//lowerright
+			.style("fill","black")
+			.attr("id",function(d){return "pnt4"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return +d3.select("#rect"+d.i).attr("x")+(+d3.select("#rect"+d.i).attr("width"))})
+			.attr("cy",function(d){return +d3.select("#rect"+d.i).attr("y")+(+d3.select("#rect"+d.i).attr("height"))})
+			.call(d3.drag().on("drag",on_p4_resize))
+        function on_rect_drag(d, i) {
+            d3.select(this)
+                .attr("x", d.x = d3.event.x)
+                .attr("y", d.y = d3.event.y);
+
+			d3.select("#pnt1"+d.i)
+                .attr("cx", d3.event.x)
+                .attr("cy", d3.event.y);
+			d3.select("#pnt2"+d.i)
+                .attr("cx",  +d3.event.x+(+d3.select("#rect"+d.i).attr("width")))
+                .attr("cy",  d3.event.y);
+			d3.select("#pnt3"+d.i)
+                .attr("cx", d3.event.x)
+                .attr("cy", +d3.event.y+(+d3.select("#rect"+d.i).attr("height")));
+			d3.select("#pnt4"+d.i)
+                .attr("cx",  +d3.event.x+(+d3.select("#rect"+d.i).attr("width")))
+                .attr("cy",  +d3.event.y+(+d3.select("#rect"+d.i).attr("height")));
+        }
+
+        function on_p1_resize(d, i) {//lefttop corner
+			d3.select(this)
+				.attr("cx",function(c){//horizontal move
+					return Math.min(d3.event.x,d3.select("#pnt2"+d.i).attr("cx"))
+				})
+				.attr("cy",function(c){
+					return Math.min(d3.event.y,d3.select("#pnt3"+d.i).attr("cy"))
+				})
+			g.select("#rect"+d.i)
+				.attr("width",function(c){
+					//console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt3"+d.i).attr("cy")-(+d3.select("#pnt1"+d.i).attr("cy")),0)
+				})
+				.attr("x",d3.select("#pnt1"+d.i).attr("cx"))
+				.attr("y",d3.select("#pnt1"+d.i).attr("cy"))
+			//p3 moves sync with p1 horizontally
+			g.select("#pnt3"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p2 moves sync with p1 vertically
+			g.select("#pnt2"+d.i)
+				.attr("cy",this.attributes.cy.value)
+        }
+		
+		function on_p2_resize(d, i) {//right top corner
+			d3.select(this)
+				.attr("cx",function(c){
+					return Math.max(d3.select("#pnt1"+d.i).attr("cx"),d3.event.x)
+				})
+				.attr("cy",function(c){
+					return Math.min(d3.select("#pnt4"+d.i).attr("cy"),d3.event.y)
+				})
+			g.select("#rect"+d.i)
+				.attr("width",function(c){
+					console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cy")-(+d3.select("#pnt2"+d.i).attr("cy")),0)
+				})
+				.attr("y",d3.select("#pnt2"+d.i).attr("cy"))
+			//p4 moves sync with p2 horizontally
+			g.select("#pnt4"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p2 moves sync with p1 vertically
+			g.select("#pnt1"+d.i)
+				.attr("cy",this.attributes.cy.value)
+		}
+        function on_p3_resize(d, i) {//left bottom corner
+			d3.select(this)
+				.attr("cx",function(c){//horizontal move
+					return Math.min(d3.event.x,d3.select("#pnt2"+d.i).attr("cx"))
+				})
+				.attr("cy",function(c){
+					return Math.max(d3.event.y,d3.select("#pnt1"+d.i).attr("cy"))				})
+			g.select("#rect"+d.i)
+				.attr("width",function(c){
+					//console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt3"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt3"+d.i).attr("cy")-(+d3.select("#pnt1"+d.i).attr("cy")),0)
+				})
+				.attr("x",d3.select("#pnt3"+d.i).attr("cx"))
+			//p3 moves sync with p1 horizontally
+			g.select("#pnt1"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p4 moves sync with p3 vertically
+			g.select("#pnt4"+d.i)
+				.attr("cy",this.attributes.cy.value)
+        }
+		
+		function on_p4_resize(d, i) {//right bottom corner
+			d3.select(this)
+				.attr("cx",function(c){
+					return Math.max(d3.select("#pnt1"+d.i).attr("cx"),d3.event.x)
+				})
+				.attr("cy",function(c){
+					return Math.max(d3.select("#pnt2"+d.i).attr("cy"),d3.event.y)
+				})
+			g.select("#rect"+d.i)
+				.attr("width",function(c){
+					console.log(+d3.select("#pnt4"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cy")-(+d3.select("#pnt2"+d.i).attr("cy")),0)
+				})
+			//p4 moves sync with p2 horizontally
+			g.select("#pnt2"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p3 moves sync with p4 vertically
+			g.select("#pnt3"+d.i)
+				.attr("cy",this.attributes.cy.value)
+		}
+    </script>
+
+</body>
+
+</html>
