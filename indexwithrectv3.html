@@ -24,7 +24,7 @@ rect.selection {
 }
 </style>
 <body>
-Number of boxes: <input type="range" min="0" max="5" id="nRects"> 
+Number of boxes to be increased: <input type="range" min="0" max="5" id="nRects"> 
 <svg width="960" height="500"></svg>
 </body>
 <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -97,7 +97,7 @@ d3.csv("stock_data2.csv", type, function(error, data) {
       .style("font", "10px sans-serif")
       .text(function(d) { return d.id; });
 	   //g2.call(d3.drag().on('drag',selectData))  
-         var circle_position_data = d3.range(3).map(function() { 
+         var circle_position_data = d3.range(1).map(function() { 
             return { 
                 x: Math.round(Math.random() * (960 - 55 * 2) + 55), 
                 y: Math.round(Math.random() * (500 - 55 * 2) + 55) 
