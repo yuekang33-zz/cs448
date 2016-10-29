@@ -116,7 +116,7 @@ d3.csv("stock_data2.csv", type, function(error, data) {
 			.attr("width", +55)
             .attr("x", function(d) { return d.x})
             .attr("y", function(d) { return d.y})
-            .call(d3.drag().on("drag", on_rect_drag));
+            .call(d3.drag().on("drag", on_rect_drag))
 			
 		grec.append("circle")//upperleft
 			.style("fill","black")
@@ -146,6 +146,15 @@ d3.csv("stock_data2.csv", type, function(error, data) {
 			.attr("cx",function(d){return +d3.select("#rect"+d.i).attr("x")+(+d3.select("#rect"+d.i).attr("width"))})
 			.attr("cy",function(d){return +d3.select("#rect"+d.i).attr("y")+(+d3.select("#rect"+d.i).attr("height"))})
 			.call(d3.drag().on("drag",on_p4_resize))
+		
+		grec.on("dblclick",delect_rect);
+		
+	    function delect_rect(d,i){
+			d3.select(this).remove()
+			selectData()
+		}
+		
+		
         function on_rect_drag(d, i) {
             d3.select(this)
                 .attr("x", d.x = d3.event.x)
@@ -238,6 +247,7 @@ d3.csv("stock_data2.csv", type, function(error, data) {
 			grec.select("#pnt4"+d.i)
 				.attr("cy",this.attributes.cy.value)
 			selectData()
+		
         }
 		
 		function on_p4_resize(d, i) {//right bottom corner
