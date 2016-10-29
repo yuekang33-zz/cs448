@@ -29,7 +29,7 @@ rect.selection {
 }
 
 .line.hidden {
-  fill: #ccc !important;
+  stroke: #ccc !important;
 }
 
 </style>
@@ -40,7 +40,7 @@ rect.selection {
 var svg = d3.select("svg"),
     margin = {top: 20, right: 80, bottom: 30, left: 50},
     width = svg.attr("width") - margin.left - margin.right,
-    height = svg.attr("height") - margin.top - margin.bottom,
+    height = svg.attr("height") - margin.top - margin.bottom ,
     g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 
@@ -53,14 +53,14 @@ var x = d3.scaleTime().range([0, width]),
     y2 = d3.scaleLinear().range([height, 0]),
     z = d3.scaleOrdinal(d3.schemeCategory10);
 
-var brush = d3.brush()
-            .extent([[0, 0], [width, height]])
-      .on("start", brushstart)
-      .on("brush", brushmove)
-      .on("end", brushend);
+// var brush = d3.brush()
+//             .extent([[0, 0], [width, height]])
+//       //.on("start", brushstart)
+//       .on("brush", brushmove)
+//       .on("end", brushend);
 
 var line = d3.line()
-    .curve(d3.curveBasis)
+    .curve(d3.curveNatural)
     .x(function(d) { return x(d.date); })
     .y(function(d) { return y(d.price); });
 
@@ -75,8 +75,9 @@ d3.csv("stock_data2.csv", type, function(error, data) {
     };
   });
 
-  x.domain(d3.extent(data, function(d) { return d.date; }));
+  x.domain(d3.extent(data, function(d) {return d.date; }));
   y.domain([
+    
     d3.min(companies, function(c) { return d3.min(c.values, function(d) { return d.price; }); }),
     d3.max(companies, function(c) { return d3.max(c.values, function(d) { return d.price; }); })
   ]);
@@ -92,14 +93,9 @@ d3.csv("stock_data2.csv", type, function(error, data) {
   g.append("g")
       .attr("class", "axis axis--y")
       .call(d3.axisLeft(y))
-    .append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 6)
-      .attr("dy", "0.71em")
-      .attr("fill", "#000")
-      .text("Price, $");
+ 
 
-  g.call(brush);
+  
   var city = g.selectAll(".company")
     .data(companies)
     .enter().append("g")
@@ -121,19 +117,145 @@ d3.csv("stock_data2.csv", type, function(error, data) {
 
 });
 
-//svg.call(brush);
+var gBrushes = svg.append('g')
+  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+  .attr("class", "brushes");
 
-var brushCell;
+var brushes = [];
+//new brush handler
+function newBrush() {
+
+    var brush = d3.brush().extent([[0, 0], [width, height + margin.bottom]])
+      //.on("start", brushstart)
+      .on("brush", brushmove)
+      //.on("brush", brushed) //Make sure don't pass surrounding brushes
+      .on("end", brushend); //Keep track of what brushes is surrounding
+   
+   brushes.push({id: brushes.length, brush: brush});
+   console.log("new brush extend is", brushes);
+
+
+  
+  function brushend() {
+
+    //add a new brush as needed
+   // var lastBrushExtent = brushes[brushes.length - 1].brush.extent();
+    //if (lastBrushExtent[0].getTime() != lastBrushExtent[1].getTime())
+    //  var lastBrush = brushes[brushes.length - 1];
+      // lastBrush.brush.dateMin = d3.event.selection[0][0];
+      // lastBrush.brush.dateMax = d3.event.selection[1][0];
+      // lastBrush.brush.priceMin = d3.event.selection[1][1];
+      // lastBrush.brush.priceMax = d3.event.selection[0][1];
+      var lastBrush = brushes[brushes.length-1].brush;
+      lastBrush.extentp = d3.event.selection;
+      brushes.forEach(function(brush, i){
+        console.log("each brush extent is ", brush.brush.extentp);
+      });
+      newBrush();
+      update();
+  }
+}
+
+function update() {
+
+//d3.brush().extent([[0, 0], [width, height]])
+
+
+  console.log("all brushes", brushes);
+  var gBrush = gBrushes
+    .selectAll('.brush')
+    .data(brushes, function (d){return d.id});
+
+  gBrush.enter()
+    .insert("g", '.brush')
+    .attr('class', 'brush')
+    .each(function(brushWrapper) {
+      //call the brush
+      brushWrapper.brush(d3.select(this));
+    });
+
+  // gBrush 
+  //   .each(function (brushWrapper,i){
+  //     d3.select(this)
+  //       .attr('class', 'brush brush-'+i)
+  //       .selectAll('.background')
+  //       .style('pointer-events', function() {
+  //         var brush = brushWrapper.brush;
+
+  //         return i === brushes.length-1 &&
+  //           brush !== undefined &&
+  //           brush.extent()[0].getTime() === brush.extent()[1].getTime() 
+  //             ? 'all' : 'none';
+  //       });
+
+  //   })
+
+       var e = d3.event.selection;
+       brushes.forEach(function(brush, i) {
+          //var e = d3.event.selection;
+           console.log("current selection is", brush.extent);
+       }
+
+       );
+       
+
+      gBrush .each(function (brushWrapper,i){
+          var curBrush = brushes[i];
+      d3.select(this)
+        .attr('class', 'brush brush-'+i)
+        // . attr("x", curBrush.brush[0][0])
+        // . attr("y", curBrush.brush[0][1])
+        // .attr("width", curBrush.brush[1][0] - curBrush.brush[0][0])
+        // .attr("height", curBrush.brush[1][1] - curBrush.brush[0][1])
+        .selectAll('.background')
+        .style('pointer-events', function() {
+          var brush = brushWrapper.brush;
+          var e = d3.event.selection;
+          console.log("current selection is", e[0][0]);
+         // console.log("minDate: ", brush.minDate + "maxDate: " + brush.maxDate + "minPrice: " + brush.minPrice + "maxPrice: " + brush.maxPrice);
+          brushe.extent([[dateMin, priceMax], [dateMax - dateMin, priceMax - priceMin]])
+          return i === brushes.length-1 &&
+            brush !== undefined &&
+            brush.extent()[0].getTime() === brush.extent()[1].getTime() 
+              ? 'all' : 'none';
+        })
+ 
+
+     }) 
+
+   gBrush.selectAll('rect.selection').each(function (selection, i){
+      console.log("current selection is", selection);
+      var curBrush = brushes[i];
+       d3.select(this)
+        . attr("x", curBrush.brush.extentp[0][0])
+        . attr("y", curBrush.brush.extentp[0][1])
+        .attr("width", curBrush.brush.extentp[1][0] - curBrush.brush.extentp[0][0])
+        .attr("height", curBrush.brush.extentp[1][1] - curBrush.brush.extentp[0][1])
+   });
+     
+
+  gBrush.exit()
+    .remove();
+}
+
+ newBrush();
+ update();
+
 
   // Clear the previously-active brush, if any.
-  function brushstart(p) {
-    if (brushCell !== this) {
-      d3.select(brushCell).call(brush.clear());
-      x.domain(domainByTrait[p.x]);
-      y.domain(domainByTrait[p.y]);
-      brushCell = this;
-    }
-  }
+  // function brushstart(p) {
+  //   var e = d3.event;
+
+  //       if( e.shiftKey) {
+  //           console.log("ctrl is selected");
+  //       }
+  //   if (brushCell !== this) {
+  //     d3.select(brushCell).call(brush.clear());
+  //    // x.domain(domainByTrait[p.x]);
+  //     //y.domain(domainByTrait[p.y]);
+  //     brushCell = this;
+  //   }
+  // }
 
   // Highlight the selected circles.
   function brushmove(p) {
@@ -141,20 +263,21 @@ var brushCell;
     var e = d3.event.selection;
    // x.domain( e.map(x2.invert, x2) ); //min and max data X values
    // y.domain( [e[0][1] , e[1][1] ] ); //min and max data Y values
-             console.log("e[0][0] is", e[0][0]);
-           console.log("e[0][1] is", e[0][1]);
-            console.log("e[1][0] is", e[1][0]);
-             console.log("e[1][1] is", e[1][1]);
-             console.log("mapped e[0][0] is", x.invert(e[0][0]));
-             console.log("mapped e[0][1] is", y.invert(e[0][1]));
-             console.log("mapped e[1][0] is", x.invert(e[1][0]));
-             console.log("mapped e[1][1] is", y.invert(e[1][1]));
+        //     console.log("e[0][0] is", e[0][0]);
+          // console.log("e[0][1] is", e[0][1]);
+            //console.log("e[1][0] is", e[1][0]);
+             //console.log("e[1][1] is", e[1][1]);
+             //console.log("mapped e[0][0] is", x.invert(e[0][0]));
+             //console.log("mapped e[0][1] is", y.invert(e[0][1]));
+             //console.log("mapped e[1][0] is", x.invert(e[1][0]));
+             //console.log("mapped e[1][1] is", y.invert(e[1][1]));
     var dateMin = x.invert(e[0][0]);
     var dateMax = x.invert(e[1][0]);
     var priceMin = y.invert(e[1][1]);
     var priceMax = y.invert(e[0][1]);
    // svg.selectAll('path.line').style("fill", "red");
-    var left = svg.selectAll('path.line').filter(function(d, i) {
+
+   svg.selectAll('path.line'). classed("hidden", function(d) {
         var flag = false;
         d.values.forEach(function(ele, j){
           //console.log("eledate", ele.date);
@@ -162,16 +285,35 @@ var brushCell;
          // console.log("compare date: ", ele.date <= dateMax);
           //console.log("compare PRICE: ", ele.price < priceMin);
          
-          if (x(ele.date) <= x(dateMax) && x(ele.date) >= x(dateMin) && (ele.price >= priceMin && ele.price <= priceMax) ) {
-            console.log("skip");
+          if (ele.date <= dateMax && ele.date >= dateMin && (ele.price < priceMin || ele.price > priceMax) ) {
+             // console.log("skip date compare", ele.date <= dateMax && ele.date >= dateMin);
+             // console.log("skip price compare", ele.price < priceMin || ele.price > priceMax);
+             // console.log("skip:" + ele.price + ": " + ele.date);
               flag = true;
           }
           // return d.values[j].date <= dateMax && d.values[j].date >= dateMin && (d.values[j].price < priceMin || d.values[j].price > priceMax);
         })
-        console.log("flag", flag)
+       //   console.log("flag", flag)
         return flag;
-    }).style("stroke", "green");
-    console.log(left);
+   });
+    // var left = svg.selectAll('path.line').filter(function(d, i) {
+    //     var flag = false;
+    //     d.values.forEach(function(ele, j){
+    //       //console.log("eledate", ele.date);
+    //       //console.log("eleprice", ele.price);
+    //      // console.log("compare date: ", ele.date <= dateMax);
+    //       //console.log("compare PRICE: ", ele.price < priceMin);
+         
+    //       if (x(ele.date) <= x(dateMax) && x(ele.date) >= x(dateMin) && (ele.price >= priceMin && ele.price <= priceMax) ) {
+    //         console.log("skip");
+    //           flag = true;
+    //       }
+    //       // return d.values[j].date <= dateMax && d.values[j].date >= dateMin && (d.values[j].price < priceMin || d.values[j].price > priceMax);
+    //     })
+    //     console.log("flag", flag)
+    //     return flag;
+    // }).style("stroke", "green");
+    // console.log(left);
     //     svg.selectAll('path.line').classed("hidden", (function(d, i) {
     //     d.values.forEach(function(ele){
     //       if (ele.date <= dateMax && ele.date >= dateMin && (ele.price < priceMin || ele.price > priceMax) ) {
@@ -197,19 +339,15 @@ var brushCell;
   }
 
   // If the brush is empty, select all circles.
-  function brushend() {
-    if (brush.empty()) svg.selectAll(".hidden").classed("hidden", false);
-      svg.selectAll(".companies").classed("hidden", function(d) {
-     
-      return e[0][0] > d[p.x] || d[p.x] > e[1][0]
-          || e[0][1] > d[p.y] || d[p.y] > e[1][1];
-    });
-  }
+  // function brushend() {
+  //     if (brush.empty()) svg.selectAll(".hidden").classed("hidden", false);
+  // }
 
 
 
 function type(d, _, columns) {
   d.date = parseTime(d.date);
+  //console.log(d.date);
   for (var i = 1, n = columns.length, c; i < n; ++i) d[c = columns[i]] = +d[c];
   return d;
 }
