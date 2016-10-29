@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+.axis--x path {
+  display: none;
+}
+.line {
+  fill: none;
+  stroke: gray;
+  stroke-width: 1.5px;
+}
+rect.selection {
+    stroke          : black;
+    stroke-dasharray: 10px;
+    stroke-opacity  : 0.5;
+    fill            : transparent;
+}
+.line.highlight {
+    fill-opacity: 1;
+    stroke-opacity: 1;
+}
+.line.hidden {
+  fill: #ccc !important;
+}
+</style>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 80, bottom: 30, left: 50},
+    width = svg.attr("width") - margin.left - margin.right,
+    height = svg.attr("height") - margin.top - margin.bottom,
+    g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+	g2 = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+	g3 = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+var parseTime = d3.timeParse("%m/%d/%y");
+var bisectDate = d3.bisector(function(d) { return d.date; }).left;
+var x = d3.scaleTime().range([0, width]),
+    y = d3.scaleLinear().range([height, 0]),
+    y2 = d3.scaleLinear().range([height, 0]),
+    z = d3.scaleOrdinal(d3.schemeCategory10);
+
+var line = d3.line()
+    .curve(d3.curveNatural)
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.price); });
+var selected_data ;
+var all_data;
+var city
+d3.csv("stock_data2.csv", type, function(error, data) {
+  if (error) throw error;
+	var companies = data.columns.slice(1).map(function(id) {
+    return {
+      values: data.map(function(d) {
+        return {date: d.date, price: d[id], id: id};
+      })
+    };
+  });
+  all_data = companies
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+  y.domain([
+    d3.min(companies, function(c) {  return d3.min(c.values, function(d) { return d.price; }); }),
+    d3.max(companies, function(c) {  return d3.max(c.values, function(d) { return d.price; }); })
+  ]);
+  z.domain(companies.map(function(c) { return c.id; }));
+  g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+  g.append("g")
+      .attr("class", "axis axis--y")
+      .call(d3.axisLeft(y))
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", "0.71em")
+      .attr("fill", "#000")
+      .text("Price, $");
+ // g.call(brush);
+    city = g.selectAll(".company")
+    .data(companies)
+    .enter().append("g")
+      .attr("class", "company");
+  city.append("path")
+      .attr("class", "line")
+      .attr("d", function(d) { return line(d.values); })
+      .style("stroke","palegray")
+      //.style("stroke", function(d) { return z(d.id); });
+  city.append("text")
+      .datum(function(d) { return {id: d.id, value: d.values[d.values.length - 1]}; })
+      .attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.price) + ")"; })
+      .attr("x", 3)
+      .attr("dy", "0.35em")
+      .style("font", "10px sans-serif")
+      .text(function(d) { return d.id; });
+	   //g2.call(d3.drag().on('drag',selectData))  
+         var circle_position_data = d3.range(3).map(function() { 
+            return { 
+                x: Math.round(Math.random() * (960 - 55 * 2) + 55), 
+                y: Math.round(Math.random() * (500 - 55 * 2) + 55) 
+            }; 
+        });
+		updateRects()
+		function updateRects(){
+		circle_position_data.forEach(function(d, i) {
+            d.i = i;
+        });
+
+        /*var grec = svg.selectAll("rect")
+                .data(circle_position_data)
+                .enter()
+                .append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+			grec.exit().remove();*/
+		
+		//update ids  of update set
+		var grec = g3.selectAll("rect")
+					.data(circle_position_data)
+					.attr("id", function(d) { return "rect" + d.i; })
+		grec = g3.selectAll("circle.pnt1")
+					.data(circle_position_data)
+					.attr("id", function(d) { return "pnt1" + d.i; })
+		grec = g3.selectAll("circle.pnt2")
+					.data(circle_position_data)
+					.attr("id", function(d) { return "pnt2" + d.i; })
+		grec = g3.selectAll("circle.pnt3")
+					.data(circle_position_data)
+					.attr("id", function(d) { return "pnt3" + d.i; })
+		grec = g3.selectAll("circle.pnt4")
+					.data(circle_position_data)
+					.attr("id", function(d) { return "pnt4" + d.i; })
+					
+		//append new rectangles and remove invalid ones
+		grec = g3.selectAll("rect")
+                .data(circle_position_data)
+				.enter().append("g");
+			grec.exit().remove();
+		grec.append("rect")
+            .style("fill", "blue")
+            .attr("id", function(d) { return "rect" + d.i; })
+            .attr("height", +55)
+			.attr("width", +55)
+            .attr("x", function(d) { return d.x})
+            .attr("y", function(d) { return d.y})
+            .call(d3.drag().on("drag", on_rect_drag))
+			
+		grec.append("circle")//upperleft
+			.attr("class",'pnt1')
+			.style("fill","black")
+			.attr("id",function(d){return "pnt1"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return d3.select("#rect"+d.i).attr("x")})
+			.attr("cy",function(d){return d3.select("#rect"+d.i).attr("y")})
+			.call(d3.drag().on("drag",on_p1_resize))
+		grec.append("circle")//upperright
+			.attr("class",'pnt2')
+			.style("fill","black")
+			.attr("id",function(d){return "pnt2"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return +d3.select("#rect"+d.i).attr("x")+(+d3.select("#rect"+d.i).attr("width"))})
+			.attr("cy",function(d){return d3.select("#rect"+d.i).attr("y")})
+			.call(d3.drag().on("drag",on_p2_resize))
+		grec.append("circle")//lowerleft
+			.attr("class",'pnt3')
+			.style("fill","black")
+			.attr("id",function(d){return "pnt3"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return d3.select("#rect"+d.i).attr("x")})
+			.attr("cy",function(d){return +d3.select("#rect"+d.i).attr("y")+(+d3.select("#rect"+d.i).attr("height"))})
+			.call(d3.drag().on("drag",on_p3_resize))
+		grec.append("circle")//lowerright
+			.attr("class",'pnt4')
+			.style("fill","black")
+			.attr("id",function(d){return "pnt4"+d.i})
+			.attr("r",5)
+			.attr("cx",function(d){return +d3.select("#rect"+d.i).attr("x")+(+d3.select("#rect"+d.i).attr("width"))})
+			.attr("cy",function(d){return +d3.select("#rect"+d.i).attr("y")+(+d3.select("#rect"+d.i).attr("height"))})
+			.call(d3.drag().on("drag",on_p4_resize))
+		
+		grec.on("dblclick",delect_rect);
+		
+	    function delect_rect(d,i){
+			circle_position_data.splice(this.i,1)
+			d3.select(this).remove()
+			updateRects()
+			selectData()
+		}
+		
+		
+        function on_rect_drag(d, i) {
+            d3.select(this)
+                .attr("x", d.x = d3.event.x)
+                .attr("y", d.y = d3.event.y);
+			console.log(this.id)
+			console.log(d.i)
+			console.log(this.x)
+			console.log(d.x)
+			
+			console.log(i)
+			d3.select("#pnt1"+d.i)
+                .attr("cx", d3.event.x)
+                .attr("cy", d3.event.y);
+			d3.select("#pnt2"+d.i)
+                .attr("cx",  +d3.event.x+(+d3.select("#rect"+d.i).attr("width")))
+                .attr("cy",  d3.event.y);
+			d3.select("#pnt3"+d.i)
+                .attr("cx", d3.event.x)
+                .attr("cy", +d3.event.y+(+d3.select("#rect"+d.i).attr("height")));
+			d3.select("#pnt4"+d.i)
+                .attr("cx",  +d3.event.x+(+d3.select("#rect"+d.i).attr("width")))
+                .attr("cy",  +d3.event.y+(+d3.select("#rect"+d.i).attr("height")));
+			selectData()
+        }
+
+        function on_p1_resize(d, i) {//lefttop corner
+			d3.select(this)
+				.attr("cx",function(c){//horizontal move
+					return Math.min(d3.event.x,d3.select("#pnt2"+d.i).attr("cx"))
+				})
+				.attr("cy",function(c){
+					return Math.min(d3.event.y,d3.select("#pnt3"+d.i).attr("cy"))
+				})
+			grec.select("#rect"+d.i)
+				.attr("width",function(c){
+					//console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt3"+d.i).attr("cy")-(+d3.select("#pnt1"+d.i).attr("cy")),0)
+				})
+				.attr("x",d3.select("#pnt1"+d.i).attr("cx"))
+				.attr("y",d3.select("#pnt1"+d.i).attr("cy"))
+			//p3 moves sync with p1 horizontally
+			grec.select("#pnt3"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p2 moves sync with p1 vertically
+			grec.select("#pnt2"+d.i)
+				.attr("cy",this.attributes.cy.value)
+			selectData()
+        }
+		
+		function on_p2_resize(d, i) {//right top corner
+			d3.select(this)
+				.attr("cx",function(c){
+					return Math.max(d3.select("#pnt1"+d.i).attr("cx"),d3.event.x)
+				})
+				.attr("cy",function(c){
+					return Math.min(d3.select("#pnt4"+d.i).attr("cy"),d3.event.y)
+				})
+			grec.select("#rect"+d.i)
+				.attr("width",function(c){
+					console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cy")-(+d3.select("#pnt2"+d.i).attr("cy")),0)
+				})
+				.attr("y",d3.select("#pnt2"+d.i).attr("cy"))
+			//p4 moves sync with p2 horizontally
+			grec.select("#pnt4"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p2 moves sync with p1 vertically
+			grec.select("#pnt1"+d.i)
+				.attr("cy",this.attributes.cy.value)
+			selectData()
+		}
+        function on_p3_resize(d, i) {//left bottom corner
+			d3.select(this)
+				.attr("cx",function(c){//horizontal move
+					return Math.min(d3.event.x,d3.select("#pnt2"+d.i).attr("cx"))
+				})
+				.attr("cy",function(c){
+					return Math.max(d3.event.y,d3.select("#pnt1"+d.i).attr("cy"))				})
+			grec.select("#rect"+d.i)
+				.attr("width",function(c){
+					//console.log(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt2"+d.i).attr("cx")-(+d3.select("#pnt3"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt3"+d.i).attr("cy")-(+d3.select("#pnt1"+d.i).attr("cy")),0)
+				})
+				.attr("x",d3.select("#pnt3"+d.i).attr("cx"))
+			//p3 moves sync with p1 horizontally
+			grec.select("#pnt1"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p4 moves sync with p3 vertically
+			grec.select("#pnt4"+d.i)
+				.attr("cy",this.attributes.cy.value)
+			selectData()
+		
+        }
+		
+		function on_p4_resize(d, i) {//right bottom corner
+			d3.select(this)
+				.attr("cx",function(c){
+					return Math.max(d3.select("#pnt1"+d.i).attr("cx"),d3.event.x)
+				})
+				.attr("cy",function(c){
+					return Math.max(d3.select("#pnt2"+d.i).attr("cy"),d3.event.y)
+				})
+			grec.select("#rect"+d.i)
+				.attr("width",function(c){
+					console.log(+d3.select("#pnt4"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")))
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cx")-(+d3.select("#pnt1"+d.i).attr("cx")),0)})
+				.attr("height",function(c){
+					return Math.max(+d3.select("#pnt4"+d.i).attr("cy")-(+d3.select("#pnt2"+d.i).attr("cy")),0)
+				})
+			//p4 moves sync with p2 horizontally
+			grec.select("#pnt2"+d.i)
+				.attr("cx",this.attributes.cx.value)
+			//p3 moves sync with p4 vertically
+			grec.select("#pnt3"+d.i)
+				.attr("cy",this.attributes.cy.value)
+			selectData()
+		}
+		
+		
+		}
+ }); 
+
+	function selectData(){
+		var highlighted = g2.selectAll("path")
+						.data(all_data)
+						.enter();
+		//console.log('highlighted',highlighted)
+		//console.log('g2',g2);
+		highlighted.exit().remove();
+		highlighted.append("path")
+			.attr("class", "selected")
+			.attr("d", function(d) { return line(d.values); })
+			.style("stroke","red")
+			.style("fill",'none')
+		update(all_data)
+	}
+
+
+ 
+
+function update(selected_data){
+	/*var e = d3.event.selection;
+    var dateMin = x.invert(e[0][0]);
+    var dateMax = x.invert(e[1][0]);
+    var priceMin = y.invert(e[1][1]);
+    var priceMax = y.invert(e[0][1]);
+	var selected_data_update = [];
+	console.log('pricemin',priceMin)
+	console.log('pricemax',priceMax)*/
+	var selected_data_update = [];
+	highlighted = g2.selectAll("path").filter(function(d,j){ 
+					var flag = true;
+					for(var i =0; i<d.values.length;i++){
+						/*if(d.values[i].price>34 && x(d.values[i].date)>500){
+							selected_data.splice(j,1)
+							return false}*/
+						svg.selectAll('rect').each(function(drec,j){
+							console.log('rectid ',drec.i)
+							var dateMin = x.invert(svg.selectAll("#pnt1"+drec.i).attr("cx"))
+							var dateMax = x.invert(svg.selectAll("#pnt2"+drec.i).attr("cx"))
+							var priceMin = y.invert(svg.selectAll("#pnt3"+drec.i).attr("cy"))
+							var priceMax = y.invert(svg.selectAll("#pnt1"+drec.i).attr("cy"))
+							/*console.log('minvalue',priceMin)
+							console.log('maxvalue',priceMax)
+							console.log('mindate',dateMin)
+							console.log('maxdate',dateMax)*/
+							if (d.values[i].date<= dateMax && d.values[i].date >= dateMin && (d.values[i].price < priceMin || d.values[i].price > priceMax) ){
+							console.log('curvalue',d.values[i].price)
+							console.log('curdate',d.values[i].date)
+							console.log('minvalue',priceMin)
+							console.log('maxvalue',priceMax)
+							console.log('mindate',dateMin)
+							console.log('maxdate',dateMax)
+							flag = false;
+							return false;} 
+						
+						})
+						if(flag==false){
+							return flag;
+						}
+					}
+					//console.log('update_array',selected_data_update)
+					selected_data_update.push(d)
+					return true;})
+	highlighted = g2.selectAll("path")
+					.data(selected_data_update)
+	highlighted.exit().remove();
+	highlighted.enter().append("path")
+	highlighted.attr("class", "selected")
+				.attr("d", function(d) { return line(d.values); })
+				.style("stroke","green")
+
+}
+
+function type(d, _, columns) {
+  d.date = parseTime(d.date);
+  for (var i = 1, n = columns.length, c; i < n; ++i) d[c = columns[i]] = +d[c];
+  return d;
+}
+</script>
