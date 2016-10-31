@@ -30,7 +30,8 @@ rect.selection {
 
 </style>
 <body>
-<button value ="New Time Box" id="nRects"  >  New Time Box </button><br>
+<button value ="New Time Box" id="nRects">  New Time Box </button><br>
+ <button value ="Clear All Time Boxes" id="cleartimeBoxes"  >  Clear all time boxes </button>
 <div class="Aligner">
 <svg width="960" height="500"></svg>
 </div>
@@ -122,7 +123,16 @@ d3.csv("stock_data.csv", type, function(error, data) {
         });*/
 		updateRects()
 		d3.select("#nRects").on("click", newRect);
-		
+		d3.select("#cleartimeBoxes").on("click", cleartimeBoxes);
+
+	function cleartimeBoxes () {
+		console.log("enter clearing");
+		circle_position_data = [];
+
+		d3.selectAll("rect").remove();
+		d3.selectAll("circle").remove();
+		updateRects();
+	}
 		function newRect(){
 			    var self = this, rect, rectData = [], isDown = false, m1, m2, isDrag = false;
     
@@ -355,6 +365,7 @@ d3.csv("stock_data.csv", type, function(error, data) {
 			//selectData()
 		
         }
+
 		
 		function on_p4_resize(d, i) {//right bottom corner
 			d3.select(this)
@@ -385,7 +396,7 @@ d3.csv("stock_data.csv", type, function(error, data) {
  }); 
 
 	function selectData(){
-		var highlighted = g2.selectAll("path")
+		var highlighted = g2.selectAll("path.selected")
 						.data(all_data)
 						.enter();
 		//console.log('highlighted',highlighted)
@@ -412,13 +423,13 @@ function update(selected_data){
 	console.log('pricemin',priceMin)
 	console.log('pricemax',priceMax)*/
 	var selected_data_update = [];
-	highlighted = g2.selectAll("path").filter(function(d,j){ 
+	highlighted = g2.selectAll("path.selected").filter(function(d,j){ 
 					var flag = true;
 					for(var i =0; i<d.values.length;i++){
 						/*if(d.values[i].price>34 && x(d.values[i].date)>500){
 							selected_data.splice(j,1)
 							return false}*/
-						svg.selectAll('rect').each(function(drec,j){
+						g3.selectAll('rect').each(function(drec,j){
 							//console.log('rectid ',drec.i)
 							var dateMin = x.invert(svg.selectAll("#pnt1"+drec.i).attr("cx"))
 							var dateMax = x.invert(svg.selectAll("#pnt2"+drec.i).attr("cx"))
@@ -457,6 +468,8 @@ function update(selected_data){
 				.style("stroke-width",'2px')
 
 }
+
+
 
 function type(d, _, columns) {
   d.date = parseTime(d.date);
