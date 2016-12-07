@@ -21,27 +21,31 @@ DecisionNode.prototype.print =  function() {
 let DecisionTree = module.exports = function (options) {
     var self = this;
     self.data = options['data'];
-    self.result = options['result'];
+    //self.result = options['result'];
 	self.feature = options['feature'];
 }
 
 DecisionTree.prototype.build = function(options) {
     var self = this;
-    var rows = [];
+    /*var rows = [];
     var i;
+	//data seems to be copied by reference to rows...., then not necessary
     for(i=0; i<self.data.length; i++) {
 		//console.log('testtest',self.data[i]);
         rows.push(self.data[i]);
-        rows[i].push(self.result[i]);
-    }
-    self.tree = buildTree('null',rows,entropy,self.feature);
+        //rows[i].push(self.result[i]);
+		
+    }*/
+    //console.log('data validate after', self.data[0])
+	//last parameter signifies no pruning
+	self.tree = buildTree('null',self.data,entropy,self.feature,self.data[0].length);
     return self.tree;
 };
 
-DecisionTree.prototype.print = function() {
+DecisionTree.prototype.print = function(filename) {
 
     var self = this;
-    printTree(self.tree,'');
+    printTree(self.tree,'',filename);
 }
 
 DecisionTree.prototype.classify = function(observation) {
@@ -49,15 +53,36 @@ DecisionTree.prototype.classify = function(observation) {
     return classify(observation,self.tree);
 }
 
+DecisionTree.prototype.dataAtNode = function(nodeName) {
+    var self = this;
+	var rows = [];
+    var i;
+	//console.log('data validate', self.data[0])
+    /*for(i=0; i<self.data.length; i++) {
+        rows.push(self.data[i]);
+        //rows[i].push(self.result[i]);
+    }*/
+    return dataAtNode(nodeName,self.tree,self.data);
+}
+
 DecisionTree.prototype.prune = function(mingain){
     var self = this;
     prune(self.tree,mingain);
 }
 
+DecisionTree.prototype.prune_manual = function(nodeName){
+    var self = this;
+	var found = dataAtNode(nodeName,self.tree,self.data);
+	var subtree = buildTree(found[0].pNode,found[1],entropy,self.feature,found[0].col);
+    //prune_manual(found[0],found[1],found[0].col,self.feature);
+	prune_manual(self.tree,subtree,subtree.pNode);
+	//console.log('retrained subtree',found[0]);
+}
+
 DecisionTree.prototype.getTree = function() {
     return this.tree;
 }
-
+//automatic pruning of the original program
 function prune(tree,mingain) {
     if(typeof tree.children[0].results === 'undefined')
         prune(tree.children[0],mingain);
@@ -89,6 +114,54 @@ function prune(tree,mingain) {
     }
 }
 
+//manually pruning, current version: if unsatisfied with a node's condition, forbid building with that feature
+//use the tree found with dataAtNode
+//function prune_manual(tree,subtree,rows,forbid_col,feature){
+function prune_manual(tree,subtree,pNode){
+		//warning: extreme case of pruning root node not considered here
+		//replace the tree part with a new one
+		if(tree.children[0].name == pNode){
+			tree.children[0] = subtree;
+			return true;
+		}
+		if(tree.children[1].name == pNode){
+			tree.children[1] = subtree;
+			return true;
+		}
+		if(tree.children!=undefined){
+			if(prune_manual(tree.children[0],subtree,pNode)) return true;
+			if(prune_manual(tree.children[1],subtree,pNode)) return true;
+		}
+		return false;
+}
+//get the data at the appointed node
+function dataAtNode(nodeName,tree,rows){
+	console.log("currently at"+tree.name)
+	//if found
+	if(tree.name ==  nodeName){
+		var found = [tree,rows];
+		/*console.log("node found, with tree: ");
+		console.log(found[0]);
+		console.log("And following data: ");
+		console.log(found[1]);*/
+		return found
+	} 
+	//if not found yet and not the leaf node
+	if(tree.children != undefined){
+		//split the set with predefined node
+		var sets = divideSet(rows,tree.col,tree.value);
+		var obj_left = dataAtNode(nodeName,tree.children[0],sets[0]);
+		if(obj_left.length!=0) return obj_left;
+		var obj_right = dataAtNode(nodeName,tree.children[1],sets[1]);
+		if(obj_right.length!=0) return obj_right;
+	}
+	else{
+		//console.log("no node called "+nodeName+" found!");
+		return [];
+	}
+}
+
+
 function classify(observaton,tree) {
     if(typeof tree.results !== 'undefined')
         return tree.results;
@@ -106,23 +179,24 @@ function classify(observaton,tree) {
     }
 }
 
-function printTree(tree,indent) {
+function printTree(tree,indent,filename) {
 	console.log(tree);
 	var fs = require('fs');
-	fs.writeFile("test_iris.txt", JSON.stringify(tree), function(err) {
+	fs.writeFile(filename, JSON.stringify(tree), function(err) {
 		if(err) {
 			return console.log(err);
 		}
 	});
 }
 
-function buildTree(pNode,rows,scoref,feature) {
+function buildTree(pNode,rows,scoref,feature,forbid_col) {
     if(rows.length == 0) return new DecisionNode();
     var currentScore = scoref(rows);
     var bestGain = 0.0, bestCriteria, bestSets;
     var columnCount = rows[0].length - 1;
     var col, i;
     for(col=0; col<columnCount; col++) {
+		if(col==forbid_col) continue;//for manual prunning
         var columnValues = {};
         for(i=0; i<rows.length; i++) {
             columnValues[rows[i][col]] = 1;
@@ -147,8 +221,8 @@ function buildTree(pNode,rows,scoref,feature) {
 		else{
 			nodeName = feature[bestCriteria[0]]+'=='+bestCriteria[1];
 		}
-		var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature);
-        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature);
+		var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,forbid_col);
+        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,forbid_col);
 		var curPartition = uniqueCounts(rows);
         return new DecisionNode({
             col : bestCriteria[0],
@@ -162,7 +236,7 @@ function buildTree(pNode,rows,scoref,feature) {
 		//leaf node, no name, result is the majority
 		var curPartition = uniqueCounts(rows);
         return new DecisionNode({
-			name : ' ',
+			name : majClass(curPartition),
 			pNode : pNode,
 			partObj : curPartition,
             results : majClass(curPartition)

@@ -27,32 +27,36 @@ var training_data = require('./iris.json')
 
 var class_name = Object.keys(training_data[0])[Object.keys(training_data[0]).length-1];
 var features = Object.keys(training_data[0]).slice(0,Object.keys(training_data[0]).length-1)
-
+//console.log(features)
+//data with label as the last col
 var data=[];
 for(var k in training_data){
 	data.push([]);
 	for(var f in features){
 		data[k].push(training_data[k][features[f]])
 	}
+	data[k].push(training_data[k][class_name])
 }
-
-var result = _.pluck(training_data,class_name);
+//console.log(training_data[0])
+//var result = _.pluck(training_data,class_name);
 
 //var ml = require('./ML/lib/machine_learning');
 var decisionTree = require('./ML/lib/DecisionTree');
 //var dt = new ml.DecisionTree({
 var dt = new decisionTree({
     data : data,
-    result : result,
+    //result : result,
 	feature : features
 });
 
 dt.build();
 
-// dt.print();
+dt.print("test_iris.txt");
 
 console.log("Classify : ", dt.classify([data[0]]));
-
+console.log("try to find data at node: sepalLength>=6");
+dt.prune_manual("sepalLength>=6");
+dt.print("test_iris_prune.txt");
 //dt.prune(1.0); // 1.0 : mingain.
-dt.print();
+//dt.print();
 
