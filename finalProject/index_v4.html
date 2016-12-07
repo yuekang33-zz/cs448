@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.node {
+  cursor: pointer;
+}
+
+.node circle {
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  font: 10px sans-serif;
+}
+
+.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+</style>
+<head>
+</head>
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="require.js"></script>
+<script src="/ML/lib/DecisionTree.js"></script>
+<!--script src="/ML/lib/utils.js"></script-->
+<script>
+var margin = {top: 20, right: 20, bottom: 20, left: 20},
+    width = 960 - margin.right - margin.left,
+    height = 480 - margin.top - margin.bottom;
+
+var i = 0,
+    duration = 750,
+    root;
+
+var tree = d3.layout.tree()
+    .size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.x, d.y]; });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.right + margin.left)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var colors = d3.scale.category10();
+var cat = [];
+function loadScript(url, callback)
+{
+    // Adding the script tag to the head as suggested before
+    var head = document.getElementsByTagName('head')[0];
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = url;
+
+    // Then bind the event to the callback function.
+    // There are several events for cross browser compatibility.
+    script.onreadystatechange = callback;
+    script.onload = callback;
+
+    // Fire the loading
+    head.appendChild(script);
+}
+var dtree;
+var root;
+//loadScript('DT_ml_demo.js', start);
+d3.json('./iris.json',function(d){
+	var training_data =d;
+	var class_name = Object.keys(training_data[0])[Object.keys(training_data[0]).length-1];
+	var features = Object.keys(training_data[0]).slice(0,Object.keys(training_data[0]).length-1)
+	//console.log(features)
+	//data with label as the last col
+	var data=[];
+	for(var k in training_data){
+	  data.push([]);
+	  for(var f in features){
+		data[k].push(training_data[k][features[f]])
+	  }
+	  data[k].push(training_data[k][class_name])
+	}
+	//console.log(training_data[0])
+	//var result = _.pluck(training_data,class_name);
+
+	//var decisionTree = require('./ML/lib/DecisionTree');
+	var dt = new DecisionTree({
+		data : data,
+		//result : result,
+	  feature : features
+	});
+
+	dtree = dt.build();
+	root = JSON.parse(JSON.stringify(dtree));
+	  root.x0 = width / 2;
+  root.y0 = 0;
+  root._name = Object.keys(root.partObj).reduce(function(a, b){ return root.partObj[a] > root.partObj[b] ? a : b });
+  console.log("tree",root);
+  console.log("tree");
+  function collapse(d) {
+    //prepare name for toggle as well
+    d._name = d.name; 
+    d.name = Object.keys(d.partObj).reduce(function(a, b){ return d.partObj[a] > d.partObj[b] ? a : b });
+    if (d.children) {
+        d._children = d.children;
+        d._children.forEach(collapse);
+        d.children = null;
+        d.isLeaf = true;
+    } else {
+        d.isLeaf = true;
+    }
+  }
+
+  var nodeList = tree.nodes(root.children[0]);
+
+  root.children.forEach(collapse);
+    function flatten(root) {
+  var nodes = [],
+    i = 0;
+
+  function recurse(node) {
+    if (node.children) node.children.forEach(recurse);
+    if (node._children) node._children.forEach(recurse);
+    if (!node.id) node.id = ++i;
+    nodes.push(node);
+  }
+
+  recurse(root);
+  return nodes;
+}
+
+    function doReset(){
+        flatten(root).forEach(function(d) {
+          d.color = "gray";
+        })
+        update(root);      
+    }
+
+var select = d3.select("body")
+      .append("select")
+      .on("change", function() {
+    //get the value of teh select
+    var select = d3.select("select").node().value;
+    //find selected data from flattened root record
+    var find = flatten(root).find(function(d) {
+      if (d.name == select)
+        return true;
+    });
+    //reset all the data to have color undefined.
+    flatten(root).forEach(function(d) {
+      d.color = "gray";
+    })
+    //iterate over the selected node and set color as red.
+    //till it reaches it reaches the root
+    while (find.parent) {
+      find.color = "red";
+      find = find.parent;
+    }
+    update(find);//call update to reflect the color change
+      });  
+
+
+    select.append("option")
+      .attr("value", "Select")
+      .attr("selected", "true")
+      .text("Select");
+
+    nodeList.forEach(function(d) {
+
+      select.append("option")
+        .attr("value", d.name)
+        .text(d.name);
+
+    });
+    d3.select("body").append("button")
+      .text("Reset").on("click", function(){
+        d3.select("select").node().value = "Select";
+        doReset();
+      });
+
+  //set the list of categories
+  for(var key in root.partObj){
+    cat.push(key);
+    console.log(cat.length,colors(cat.length));
+    //add legend
+    svg.append("rect")
+        .attr("class","rectL")
+        .attr("id","rectL"+cat.length)
+        .attr("x",0)
+        .attr("y",function(){return cat.length===1?0:+document.getElementById("rectL"+(cat.length-1)).getAttribute("y")+20})
+        .attr("width",10)
+        .attr("height",10)
+        .attr("fill",colors(cat.length))
+        .attr("opacity",50);
+    svg.append("text")
+      .attr("y", function(d) { return cat.length===1?10:+document.getElementById("rectL"+(cat.length-1)).getAttribute("y")+30})
+      .attr("x",15)
+      .attr("text-anchor","start")
+      .text(key)
+      //.style("fill-opacity", 1e-6);
+  }
+  update(root);
+	console.log(dtree)
+})
+
+
+
+  
+
+
+//});
+
+// add accuracy
+  svg.append("text")
+      .attr("class","training_accuracy")
+      .attr("x","500px")
+      .attr("y", "30px")
+      .text(function() {
+          return "training accuracy"
+      })
+
+
+d3.select(self.frameElement).style("height", "480px");
+
+function update(source) {
+
+  // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse(),
+      links = tree.links(nodes);
+
+  // Normalize for fixed-depth.
+  nodes.forEach(function(d) { d.y = d.depth * 80; });
+
+  // Update the nodes…
+  var node = svg.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) { return "translate(" + source.x0 + "," + source.y0 + ")"; })//transform is to move point around
+      .on("click", click)
+      .on("mouseover",function(d){svg.selectAll(".rectP"+d.id).attr("opacity",50)})
+      .on("mouseout",function(d){svg.selectAll(".rectP"+d.id).transition().duration(1000).attr("opacity",0)});
+     /* nodeEnter.attr("partitionObj",function(d){
+        var v =  JSON.parse(d.partition)
+        console.log(v)
+        return v})*/
+
+
+    //hover and show partition
+    var prevK;
+    for(var k in cat){
+        nodeEnter.append("rect")
+            .attr("class",function(d){return "rectP"+d.id})
+            .attr("id",function(d){return "rect"+cat[k]+d.id})
+            .attr("x",function(d){return prevK? +((+document.getElementById("rect"+prevK+d.id).getAttribute("width"))+(+document.getElementById("rect"+prevK+d.id).getAttribute("x"))):+0;})
+            //.attr("y",function(d){return d.y})
+            .attr("height",10)
+            .attr("width",function(d){
+                 if(cat[k] in d.partObj){
+                    return 0.5*+d.partObj[cat[k]];
+                }
+                else return 0;
+                })
+            .attr("opacity",0)
+            .attr("fill",colors(+k+1));
+            prevK = cat[k];
+            
+    }
+
+            
+  nodeEnter.append("circle")
+      .attr("r", 1e-6)
+      .style("stroke",function(d){return cat.indexOf(d.name)>0?colors(+1+cat.indexOf(d.name)):colors(+1+cat.indexOf(d._name));})
+      .style("fill",function(d){return d._children ? colors(cat.indexOf(d.name)+1) :"#fff"; });
+
+  nodeEnter.append("text")
+      .attr("y", function(d) { return d.children || d._children ? -10 : 10; })
+      .attr("dy", ".35em")
+      .attr("text-anchor","middle")
+      //.attr("width",30)
+      .text(function(d) { return d.name; })
+        .call(wrap,100)
+      .style("fill-opacity", 1e-6);
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+  nodeUpdate.select("circle")
+      .attr("r", 4.5)
+      .style("fill",function(d){return d._children ? colors(cat.indexOf(d.name)+1) :"#fff"; });
+
+  nodeUpdate.select("text")
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(" + source.x + "," + source.y + ")"; })
+      .remove();
+
+  nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+  nodeExit.select("text")
+      .style("fill-opacity", 1e-6);
+
+  // Update the links…
+  var link = svg.selectAll("path.link")
+      .data(links, function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().insert("path", "g")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        var o = {x: source.x0, y: source.y0};
+        return diagonal({source: o, target: o});
+      });
+      
+    d3.selectAll("path").style("stroke", function(d) {
+          if (d.target.color) {
+            return d.target.color;//if the value is set
+          } else {
+            return "gray"
+          }
+        })
+
+  // Transition links to their new position.
+  link.transition()
+      .duration(duration)
+      .attr("d", diagonal);
+
+  // Transition exiting nodes to the parent's new position.
+  link.exit().transition()
+      .duration(duration)
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return diagonal({source: o, target: o});
+      })
+      .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
+
+  var training_accuracy = svg.select("text.training_accuracy");
+  var sum = 0;
+  var maxSum = 0;
+  training_accuracy.text(function() {
+        var leaves = svg.selectAll(".node").filter(function(d) {
+            return d.isLeaf == true; 
+          });
+        console.log("all leaves", leaves);
+        leaves.data().forEach(function(l) {
+          var leaf = l.partObj;
+          var max = 0;
+          for (var key in cat) {
+            if(cat[key] in leaf ){
+              if (leaf[cat[key]] > max) {
+                max = leaf[cat[key]];
+              }
+              sum = sum + leaf[cat[key]];
+            }
+
+          } 
+          maxSum = maxSum + max;
+        });
+        var ac = maxSum / sum;
+        console.log("maxSum: "+ maxSum + "sum : " + sum);
+        var accuracy = ac.toPrecision(5)
+        return "Training Accuracy : " + accuracy * 100 + "%";
+      })
+
+
+}
+
+// Toggle children on click.
+function click(d) {
+  var name = d.name;
+  d.name = d._name;
+  d._name = name;
+  if (d.children) {
+    setLeaf(d);
+    d._children = d.children;//_children for storing children node, won't show up in visualization
+    d.children = null;
+    d.isLeaf = true;
+  } else {
+    d.children = d._children;
+    d._children = null;
+    if (d.children) {
+      d.isLeaf = false;
+      unsetLeaf(d);
+  }
+  }
+  update(d);
+}
+
+function setLeaf (d) {
+  if (d.children == null) {
+    d.isLeaf = false;
+    return;
+  }
+  d.children.forEach(function(c) {
+    c.isLeaf = false;
+    setLeaf(c);
+  })
+}
+
+function unsetLeaf(d) {
+      if (!d.children) {
+        d.isLeaf = true;
+        return;
+      }
+      d.children.forEach(function(c) {
+          unsetLeaf(c);
+      })
+}
+function wrap(text, width) {
+  text.each(function() {
+    var text = d3.select(this),
+        words = text.text().split(/\s+/).reverse(),
+        word,
+        line = [],
+        lineNumber = 0,
+        lineHeight = 1.1, // ems
+        y = text.attr("y"),
+        dy = parseFloat(text.attr("dy")),
+        tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+    while (word = words.pop()) {
+      line.push(word);
+      tspan.text(line.join(" "));
+      if (tspan.node().getComputedTextLength() > width) {
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [word];
+        tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+      }
+    }
+  });
+}
+
+</script>
