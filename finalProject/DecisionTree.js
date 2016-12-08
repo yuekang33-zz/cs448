@@ -95,8 +95,9 @@ DecisionTree.prototype.prune_manual = function(nodeName){
     var self = this;
 	var found = dataAtNode(nodeName,self.tree,self.data);
 	var subtree = buildTree(found[0].pNode,found[1],entropy,self.feature,found[0].col);
+	console.log(subtree);
     //prune_manual(found[0],found[1],found[0].col,self.feature);
-	prune_manual(self.tree,subtree,subtree.pNode);
+	prune_manual(self.tree,subtree,subtree.pNode,nodeName);
 	//console.log('retrained subtree',found[0]);
 }
 
@@ -138,20 +139,31 @@ function prune(tree,mingain) {
 //manually pruning, current version: if unsatisfied with a node's condition, forbid building with that feature
 //use the tree found with dataAtNode
 //function prune_manual(tree,subtree,rows,forbid_col,feature){
-function prune_manual(tree,subtree,pNode){
+function prune_manual(tree,subtree,pNode,nodeName){
 		//warning: extreme case of pruning root node not considered here
+		if(tree.children!=undefined){
 		//replace the tree part with a new one
-		if(tree.children[0].name == pNode){
+		/*if(tree.children[0].name == pNode){
 			tree.children[0] = subtree;
 			return true;
 		}
 		if(tree.children[1].name == pNode){
 			tree.children[1] = subtree;
 			return true;
+		}*/
+		if(tree.name == pNode){
+			if(tree.children[0].name == nodeName){
+				tree.children[0] = subtree;
+				return true;
+			}
+			if(tree.children[1].name == nodeName){
+				tree.children[1] = subtree;
+				return true;
+			}
+			return false;
 		}
-		if(tree.children!=undefined){
-			if(prune_manual(tree.children[0],subtree,pNode)) return true;
-			if(prune_manual(tree.children[1],subtree,pNode)) return true;
+			if(prune_manual(tree.children[0],subtree,pNode,nodeName)) return true;
+			if(prune_manual(tree.children[1],subtree,pNode,nodeName)) return true;
 		}
 		return false;
 }
@@ -172,9 +184,9 @@ function dataAtNode(nodeName,tree,rows){
 		//split the set with predefined node
 		var sets = divideSet(rows,tree.col,tree.value);
 		var obj_left = dataAtNode(nodeName,tree.children[0],sets[0]);
-		if(obj_left.length!=0) return obj_left;
+		if(obj_left!=null && obj_left.length!=0) return obj_left;
 		var obj_right = dataAtNode(nodeName,tree.children[1],sets[1]);
-		if(obj_right.length!=0) return obj_right;
+		if(obj_right!=null && obj_right.length!=0) return obj_right;
 	}
 	else{
 		//console.log("no node called "+nodeName+" found!");
@@ -242,8 +254,10 @@ function buildTree(pNode,rows,scoref,feature,forbid_col) {
 		else{
 			nodeName = feature[bestCriteria[0]]+'=='+bestCriteria[1];
 		}
-		var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,forbid_col);
-        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,forbid_col);
+		//var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,forbid_col);
+        //var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,forbid_col);
+		var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,feature.length);
+        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,feature.length);
 		var curPartition = uniqueCounts(rows);
         return new DecisionNode({
             col : bestCriteria[0],
