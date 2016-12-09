@@ -26,7 +26,7 @@ var DecisionTree = function (options) {
     var self = this;
     self.data = options['data'];
     //self.result = options['result'];
-    self.feature = options['feature'];
+	self.feature = options['feature'];
 }
 
 function DecisionNode(options) {
@@ -34,10 +34,10 @@ function DecisionNode(options) {
     self.col = (typeof options['col'] === 'undefined') ? -1 : options['col'];
     self.value = options['value'];
     self.results = options['results'];
-    self.name = options['name'];
-    self.children = options['children'],
-    self.pNode = options['pNode'],//parent node, naming as 'parent' cause naming conflict
-    self.partObj = options['partObj'];
+	self.name = options['name'];
+	self.children = options['children'],
+	self.pNode = options['pNode'],//parent node, naming as 'parent' cause naming conflict
+	self.partObj = options['partObj'];
 }
 DecisionNode.prototype.print =  function() {
     var self = this;
@@ -50,16 +50,16 @@ DecisionTree.prototype.build = function(options) {
     var self = this;
     /*var rows = [];
     var i;
-    //data seems to be copied by reference to rows...., then not necessary
+	//data seems to be copied by reference to rows...., then not necessary
     for(i=0; i<self.data.length; i++) {
-        //console.log('testtest',self.data[i]);
+		//console.log('testtest',self.data[i]);
         rows.push(self.data[i]);
         //rows[i].push(self.result[i]);
-        
+		
     }*/
     //console.log('data validate after', self.data[0])
-    //last parameter signifies no pruning
-    self.tree = buildTree('null',self.data,entropy,self.feature,self.data[0].length);
+	//last parameter signifies no pruning
+	self.tree = buildTree('null',self.data,entropy,self.feature,self.data[0].length);
     return self.tree;
 };
 
@@ -76,9 +76,9 @@ DecisionTree.prototype.classify = function(observation) {
 
 DecisionTree.prototype.dataAtNode = function(nodeName) {
     var self = this;
-    var rows = [];
+	var rows = [];
     var i;
-    //console.log('data validate', self.data[0])
+	//console.log('data validate', self.data[0])
     /*for(i=0; i<self.data.length; i++) {
         rows.push(self.data[i]);
         //rows[i].push(self.result[i]);
@@ -93,11 +93,20 @@ DecisionTree.prototype.prune = function(mingain){
 
 DecisionTree.prototype.prune_manual = function(nodeName){
     var self = this;
-    var found = dataAtNode(nodeName,self.tree,self.data);
-    var subtree = buildTree(found[0].pNode,found[1],entropy,self.feature,found[0].col);
-    //prune_manual(found[0],found[1],found[0].col,self.feature);
-    prune_manual(self.tree,subtree,subtree.pNode);
-    //console.log('retrained subtree',found[0]);
+	var found = dataAtNode(nodeName,self.tree,self.data);
+	console.log(found[0].col)
+	var subtree = buildTree(found[0].pNode,found[1],entropy,self.feature,found[0].col);
+	if(nodeName!=self.tree.name){
+		//console.log(subtree);
+		prune_manual(self.tree,subtree,subtree.pNode,nodeName);
+	}
+	else{
+		self.tree.name = subtree.name;
+		self.tree.col = subtree.col;
+		self.tree.value = subtree.value;
+		self.tree.children = subtree.children;
+	}
+	//console.log('retrained subtree',found[0]);
 }
 
 DecisionTree.prototype.getTree = function() {
@@ -126,69 +135,78 @@ function prune(tree,mingain) {
         });
         var p = 1.*tb.length / tbfb.length;
         var delta = entropy(tbfb) - p * entropy(tb) - (1-p) * entropy(fb);
-        console.log("delta",delta)
         if(delta < mingain) {
             // pruning
             /*tree.children[0] = undefined;
             tree.children[1] = undefined;*/
-            tree.children = undefined;
+			tree.children = undefined;
             tree.results = uniqueCounts(tbfb);
         }
-
     }
 }
 
 //manually pruning, current version: if unsatisfied with a node's condition, forbid building with that feature
 //use the tree found with dataAtNode
 //function prune_manual(tree,subtree,rows,forbid_col,feature){
-function prune_manual(tree,subtree,pNode){
-        //warning: extreme case of pruning root node not considered here
-        //replace the tree part with a new one
-        if(tree.children[0].name == pNode){
-            tree.children[0] = subtree;
-            return true;
-        }
-        if(tree.children[1].name == pNode){
-            tree.children[1] = subtree;
-            return true;
-        }
-        if(tree.children!=undefined){
-            if(prune_manual(tree.children[0],subtree,pNode)) return true;
-            if(prune_manual(tree.children[1],subtree,pNode)) return true;
-        }
-        return false;
+function prune_manual(tree,subtree,pNode,nodeName){
+		//warning: extreme case of pruning root node not considered here
+		if(tree.children!=undefined){
+		//replace the tree part with a new one
+		/*if(tree.children[0].name == pNode){
+			tree.children[0] = subtree;
+			return true;
+		}
+		if(tree.children[1].name == pNode){
+			tree.children[1] = subtree;
+			return true;
+		}*/
+		if(tree.name == pNode){
+			if(tree.children[0].name == nodeName){
+				tree.children[0] = subtree;
+				return true;
+			}
+			if(tree.children[1].name == nodeName){
+				tree.children[1] = subtree;
+				return true;
+			}
+			return false;
+		}
+			if(prune_manual(tree.children[0],subtree,pNode,nodeName)) return true;
+			if(prune_manual(tree.children[1],subtree,pNode,nodeName)) return true;
+		}
+		return false;
 }
 //get the data at the appointed node
 function dataAtNode(nodeName,tree,rows){
-    console.log("currently at"+tree.name)
-    //if found
-    if(tree.name ==  nodeName){
-        var found = [tree,rows];
-        /*console.log("node found, with tree: ");
-        console.log(found[0]);
-        console.log("And following data: ");
-        console.log(found[1]);*/
-        return found
-    } 
-    //if not found yet and not the leaf node
-    if(tree.children != undefined){
-        //split the set with predefined node
-        var sets = divideSet(rows,tree.col,tree.value);
-        var obj_left = dataAtNode(nodeName,tree.children[0],sets[0]);
-        if(obj_left.length!=0) return obj_left;
-        var obj_right = dataAtNode(nodeName,tree.children[1],sets[1]);
-        if(obj_right.length!=0) return obj_right;
-    }
-    else{
-        //console.log("no node called "+nodeName+" found!");
-        return [];
-    }
+	console.log("currently at"+tree.name)
+	//if found
+	if(tree.name ==  nodeName){
+		var found = [tree,rows];
+		/*console.log("node found, with tree: ");
+		console.log(found[0]);
+		console.log("And following data: ");
+		console.log(found[1]);*/
+		return found
+	} 
+	//if not found yet and not the leaf node
+	if(tree.children != undefined){
+		//split the set with predefined node
+		var sets = divideSet(rows,tree.col,tree.value);
+		var obj_left = dataAtNode(nodeName,tree.children[0],sets[0]);
+		if(obj_left!=null && obj_left.length!=0) return obj_left;
+		var obj_right = dataAtNode(nodeName,tree.children[1],sets[1]);
+		if(obj_right!=null && obj_right.length!=0) return obj_right;
+	}
+	else{
+		//console.log("no node called "+nodeName+" found!");
+		return [];
+	}
 }
 
 
 function classify(observaton,tree) {
     if(typeof tree.results !== 'undefined')
-        return tree.results;
+        return majClass(tree.results);
     else {
         var v = observaton[tree.col];
         var branch;
@@ -204,13 +222,13 @@ function classify(observaton,tree) {
 }
 
 function printTree(tree,indent,filename) {
-    console.log(tree);
-    var fs = require('fs');
-    fs.writeFile(filename, JSON.stringify(tree), function(err) {
-        if(err) {
-            return console.log(err);
-        }
-    });
+	console.log(tree);
+	var fs = require('fs');
+	fs.writeFile(filename, JSON.stringify(tree), function(err) {
+		if(err) {
+			return console.log(err);
+		}
+	});
 }
 
 function buildTree(pNode,rows,scoref,feature,forbid_col) {
@@ -220,7 +238,7 @@ function buildTree(pNode,rows,scoref,feature,forbid_col) {
     var columnCount = rows[0].length - 1;
     var col, i;
     for(col=0; col<columnCount; col++) {
-        if(col==forbid_col) continue;//for manual prunning
+		if(col==forbid_col) continue;//for manual prunning
         var columnValues = {};
         for(i=0; i<rows.length; i++) {
             columnValues[rows[i][col]] = 1;
@@ -238,32 +256,34 @@ function buildTree(pNode,rows,scoref,feature,forbid_col) {
         }
     }
     if(bestGain > 0) {
-        var nodeName;
-        if(!isNaN(parseFloat(bestCriteria[1])) && isFinite(bestCriteria[1])){
-            nodeName = feature[bestCriteria[0]]+'>='+bestCriteria[1];
-        }
-        else{
-            nodeName = feature[bestCriteria[0]]+'=='+bestCriteria[1];
-        }
-        var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,forbid_col);
-        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,forbid_col);
-        var curPartition = uniqueCounts(rows);
+		var nodeName;
+		if(!isNaN(parseFloat(bestCriteria[1])) && isFinite(bestCriteria[1])){
+			nodeName = feature[bestCriteria[0]]+'>='+bestCriteria[1];
+		}
+		else{
+			nodeName = feature[bestCriteria[0]]+'=='+bestCriteria[1];
+		}
+		//var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,forbid_col);
+        //var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,forbid_col);
+		var trueBranch = buildTree(nodeName,bestSets[0],scoref,feature,feature.length);
+        var falseBranch = buildTree(nodeName,bestSets[1],scoref,feature,feature.length);
+		var curPartition = uniqueCounts(rows);
         return new DecisionNode({
             col : bestCriteria[0],
             value : bestCriteria[1],
-            name : nodeName,
-            children:[trueBranch,falseBranch],
-            pNode : pNode,
-            partObj : curPartition
+			name : nodeName,
+			children:[trueBranch,falseBranch],
+			pNode : pNode,
+			partObj : curPartition
         });
     } else {
-        //leaf node, no name, result is the majority
-        var curPartition = uniqueCounts(rows);
+		//leaf node, no name, result is the majority
+		var curPartition = uniqueCounts(rows);
         return new DecisionNode({
-            name : majClass(curPartition),
-            pNode : pNode,
-            partObj : curPartition,
-            results : curPartition//majClass(curPartition)
+			name : majClass(curPartition),
+			pNode : pNode,
+			partObj : curPartition,
+            results : curPartition
         });
     }
 }
@@ -282,15 +302,15 @@ function entropy(rows) {
 }
 
 function majClass(curPartition){
-    var majClass;
-    var maxCount = 0;
-    for(var k in curPartition){
-        if(curPartition[k]>=maxCount){
-            maxCount = curPartition[k];
-            majClass = k;
-        }
-    }
-    return majClass;
+	var majClass;
+	var maxCount = 0;
+	for(var k in curPartition){
+		if(curPartition[k]>=maxCount){
+			maxCount = curPartition[k];
+			majClass = k;
+		}
+	}
+	return majClass;
 }
 
 function uniqueCounts(rows) {
@@ -324,3 +344,4 @@ function divideSet(rows,column,value) {
 
 
 //loadScript("/ML/lib/utils.js", function(u){DecisionTree(utils=u);});
+
